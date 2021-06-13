@@ -265,7 +265,8 @@ public:
 	}
     
 	int addtable(string name){
-        ifstream read(name + ".txt", ios::binary);
+        ifstream read("./table/" + name + ".txt", ios::binary);
+        cout << name << endl;
         if(!read.good()) return 0;
         Table * newtable = new Table;
         newtable->empty = block_size;
@@ -358,7 +359,7 @@ public:
         Table * now = table->next;
         while(now){
             string name = now->name;
-            ofstream out(name + ".txt", ios::binary);
+            ofstream out("./table/"+ name + ".txt", ios::binary);
             out.write((char *)&now->blocknum, sizeof(int));
             out.write((char *)&now->typenum, sizeof(int));
             type_node * type = now->type;
@@ -849,7 +850,7 @@ public:
 
 void readindex(){
 	index = NULL;
-	ifstream in("index.txt");
+	ifstream in("./index/index.txt");
 	Index * now = new Index;
 	while(in >> now->index_name >> now->table_name >> now->type_name){
 		now->next = index;
@@ -861,7 +862,7 @@ void readindex(){
 
 void writeindex(){
 	Index * now = index;
-	ofstream out("index.txt");
+	ofstream out("./index/index.txt");
 	while(now){
 		out << now->index_name << " " << now->table_name << " " << now->type_name << endl;
 		now = now->next;
