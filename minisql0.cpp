@@ -17,6 +17,7 @@
 #define index_length 4
 #define indexname_length 20
 #define block_size 0x1000
+#define CMDLEN 50
 
 using namespace std;
 
@@ -72,7 +73,7 @@ struct Table{
 
 
 int ischar(char ch){
-    return (ch == ' ') || (ch == ',') || (ch == '(') || (ch == ')') || (ch == ';') || (ch == '\t') || (ch == '\'');
+    return (ch == ' ') || (ch == ',') || (ch == '(') || (ch == ')') || (ch == ';') || (ch == '\t') || (ch == '\'') || (ch == '\n');
 }
 
 int in(string str, string * a){
@@ -867,38 +868,76 @@ void writeindex(){
 	}
 }
 
-int main(){
-    string command = "";
-    string a[50];
-    readindex();
-    database db;
-    //printf("%lf\n", strtofloat("-17.05"));
-    ifstream in("test.txt"); 
-    while(1){
-    	string str;
-        if(!getline(in, str, '\n')) break;
-        command = command + str;
-        int len = command.length();
-        if(command[len - 1] == ';'){
-            int sum = findstr(command, a);
-            //for(int i = 0;i < sum;i++) cout << a[i] << endl;
-            command = "";
-            if(a[0] == "create" && a[1] == "table") db.create_table(a, sum);
-            //else if(a[0] == "create" && a[1] == "index" && a[3] == "on") db.create_index(a, sum);
-            else if(a[0] == "insert" && a[1] == "into" && a[3] == "values") db.insert(a, sum); 
-            else if(a[0] == "drop" && a[1] == "table") db.droptable(a, sum);
-            else if(a[0] == "drop" && a[1] == "index") db.dropindex(a, sum);
-            else if(a[0] == "delete" && a[1] == "from") db.deletes(a, sum);
-            else if(a[0] == "select") db.select(a, sum);
-            else if(a[0] == "create" && a[1] == "index" && a[3] == "on") db.create_index(a, sum);
-            //break;
-            //system("pause");
-        }
-        /*int a;
-        cin >> a;
-        cout << a + 3 << endl;*/
-        //db.fileout(); 
+string getCommand(std::istream &in){
+    string cmd;
+    cmd.clear();
+    getline(in, cmd,';');
+    return cmd;
+}
+void cmdOperation(database &db, std::istream &in) {
+    string command;
+    string cmd_words[CMDLEN];
+    command = getCommand(in);
+    clock_t start, end;
+    
+    start = clock();
+    int sum = findstr(command, cmd_words);
+    // for (int i = 0; i < sum; i++)
+    // {
+    //     cout << i << ": " << cmd_words[i] << endl;
+    //     system("pause");
+    // }
+    
+    if(cmd_words[0] == "create" && cmd_words[1] == "table") {
+        cout << "OPERATION: CREATE TABLE;" << endl;
+        db.create_table(cmd_words, sum);
     }
-    writeindex();
-    db.fileout();
+    else if(cmd_words[0] == "create" && cmd_words[1] == "index" && cmd_words[3] == "on") {
+        cout << "OPERATION: CREATE INDEX TABLE;" << endl;
+        db.create_index(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "insert" && cmd_words[1] == "into" && cmd_words[3] == "values") {
+        cout << "OPERATION: INSERT RECORDS;" << endl;
+        db.insert(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "drop" && cmd_words[1] == "table") {
+        cout << "OPERATION: DROP TABLE;" << endl;
+        db.droptable(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "drop" && cmd_words[1] == "index") {
+        cout << "OPERATION: DROP INDEX;" << endl;
+        db.dropindex(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "delete" && cmd_words[1] == "from") {
+        cout << "OPERATION: DELETE TABLE;" << endl;
+        db.deletes(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "select") {
+        cout << "OPERATION: SELECT;" << endl;
+        db.select(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "create" && cmd_words[1] == "index" && cmd_words[3] == "on") {
+        cout << "OPERATION: CREATE INDEX ON;" << endl;
+        db.create_index(cmd_words, sum);
+    }
+    else if(cmd_words[0] == "execfile") {
+        ifstream fin(cmd_words[1]); 
+        cout << "OPERATION: EXECFILE;" << endl;
+        while (!fin.eof()){
+            cmdOperation(db, fin);
+        }
+    }
+    else cout << "The command is not supported" << endl;
+    end = clock();
+    cout << "Execute Time: " << (double)(end - start) / CLOCKS_PER_SEC << " SEC" << endl;
+}
+
+int main(){
+    database db;
+    while(1){
+        printf("minisql>");
+        cmdOperation(db, cin);
+        writeindex();
+        db.fileout();
+    }
 }
