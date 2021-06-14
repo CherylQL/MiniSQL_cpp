@@ -30,6 +30,10 @@ string key_word[] = {"char", "unique", "int", "float", "primary", "key", "\n"};
 string operators[] = {"=", "<>", "<", ">", "<=", ">=", "\n"};
 
 LogManager Log;
+
+enum { EXECUTING = 0, QUIT };
+int STATUS = EXECUTING;
+
 struct Index{
 	string index_name;
 	string table_name;
@@ -968,6 +972,10 @@ void cmdOperation(database &db, std::istream &in, bool isfile) {
         Log.setStatus(200);
         Log.setMsg("EXECFILE");
     }
+    else if (cmd_words[0] == "quit"){
+        STATUS = QUIT;
+        return;
+    }
     else if(cmd_words[0] != ""){
         cout << "The command is not supported" << endl;
     }
@@ -981,6 +989,7 @@ void cmdOperation(database &db, std::istream &in, bool isfile) {
 int main(){
     database db;
     while(1){
+        if(STATUS == QUIT) break;
         printf("minisql>");
         cmdOperation(db, cin, false);
         writeindex();
