@@ -77,6 +77,7 @@ public:
 			memcpy((char *)&b, y, sizeof(double));
 			return a >= b;
 		}
+        return 0;
 	}
     int find(treenode * now, char * x){
     	if(!now->num)  return -1;

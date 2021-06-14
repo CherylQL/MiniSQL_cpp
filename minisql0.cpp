@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <fstream>
 #include <string.h>
@@ -6,7 +7,9 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <vector>
+
 #include "BPlusTree.cpp"
+#include "LogManager.cpp"
 
 #define type_length_all (name_length + type_length + char_length + isunique_length + isprimary_length + index_length + indexname_length)
 #define name_length 20
@@ -18,6 +21,7 @@
 #define indexname_length 20
 #define block_size 0x1000
 #define CMDLEN 50
+#define LISTLEN 10
 
 using namespace std;
 
@@ -25,13 +29,14 @@ using namespace std;
 string key_word[] = {"char", "unique", "int", "float", "primary", "key", "\n"};
 string operators[] = {"=", "<>", "<", ">", "<=", ">=", "\n"};
 
+LogManager Log;
 struct Index{
 	string index_name;
 	string table_name;
 	string type_name;
 	Index * next;
 };
-Index * index;
+Index* index_;
 
 /*struct node{
     struct node * next;
@@ -73,7 +78,7 @@ struct Table{
 
 
 int ischar(char ch){
-    return (ch == ' ') || (ch == ',') || (ch == '(') || (ch == ')') || (ch == ';') || (ch == '\t') || (ch == '\'') || (ch == '\n');
+    return ((ch == ' ') || (ch == ',') || (ch == '(') || (ch == ')') || (ch == ';') || (ch == '\t') || (ch == '\'') || (ch == '\n'));
 }
 
 int in(string str, string * a){
@@ -194,7 +199,8 @@ int cmp(char * x, string y, string oper, string type){
 			case 4:	return a <= b;
 			case 5:	return a >= b;
 		}
-	} 
+	}
+    return 0;
 } 
 
 class database{
@@ -266,7 +272,6 @@ public:
     
 	int addtable(string name){
         ifstream read("./table/" + name + ".txt", ios::binary);
-        cout << name << endl;
         if(!read.good()) return 0;
         Table * newtable = new Table;
         newtable->empty = block_size;
@@ -394,6 +399,15 @@ public:
     }
 
     void create_table(string * a, int n){
+        if(a[1] != "table"){
+            Log.setStatus(300);
+            Log.setMsg("Lack of Keywords 'TABLE' instead of word "+a[1]);
+            return;
+        }
+        if(find_table(table,a[2])!=NULL || addtable(a[2])){
+            Log.setStatus(401);
+            return;
+        }
         Table * newtable = new Table;
         newtable->name = a[2];
         newtable->next = table->next;
@@ -463,6 +477,8 @@ public:
             }
 			x++;
         }
+        Log.setStatus(200);
+        Log.setMsg("CREATE TABLE");
     }
 
     void droptable(string * a, int n){
@@ -470,10 +486,10 @@ public:
     	Table * last = table;
     	Table * k = table->next;
     	Index * lastindex = NULL;
-    	Index * nowindex = index;
+    	Index * nowindex = index_;
     	while(nowindex != NULL){
     		if(nowindex->table_name == name){
-    			if(lastindex == NULL) index = index->next;
+    			if(lastindex == NULL) index_ = index_->next;
     			else lastindex->next = nowindex->next;
 			} 
 			lastindex = nowindex;
@@ -483,12 +499,15 @@ public:
 			if(k->name == name){
 				last->next = k->next;
 				free(k);
-				cout << "success" << endl;
-				return;
 			}
 		}
-		if(remove(name.c_str())) cout << "success" << endl;
-		else cout << "no such table" << endl;
+		if(!remove(("./table/" + name + ".txt").c_str())){
+            Log.setStatus(200);
+            Log.setMsg("DROP TABLE");
+        }
+		else {
+            Log.setStatus(402);
+        }
 	}
     
     int insert(string * a, int n){
@@ -498,14 +517,15 @@ public:
 		k = find_table(k, name);
 		if(k == NULL){
 			if(!addtable(name)){
-				cout << "no such table!" << endl;
+				Log.setStatus(402);
 				return 0;
 			}
 			k = table->next;
 			k = find_table(k, name); 
 		}
 		if((n - 4) != k->typenum){
-			cout << "Column number mismatch!" << endl;
+            Log.setStatus(400);
+            Log.setMsg("NUMBER of COLUMN IS NOT MATCH");
 			return 0;
 		}
 		/*type_node * typenow = k->type;
@@ -534,12 +554,11 @@ public:
             	//printf("!!%x %x %d %d\n", typenow->tree, table->next->type->next->tree, typenow->tree->root->num, table->next->type->next->tree->root->num);
 				char * query = new char[typenow->len];
             	memcpy(query, newnode->value + typenow->begin, typenow->len);
-            	if(index){
+            	if(index_){
             		result * ans = typenow->tree->query(query, "=");
             		if(ans){
-            			cout << typenow->name << " is unique or primary key, but ";
-						out(query, typenow->type, typenow->len);
-						cout << " is already exists." << endl;
+                        Log.setStatus(403);
+                        Log.setOutMsg(typenow->name, query, typenow->type, typenow->len);
             			return 0;
 					}
 				}
@@ -549,9 +568,8 @@ public:
 					while(search != NULL){
 						memcpy(nowvalue, search->value + typenow->begin, typenow->len);
 						if(cmp(nowvalue, a[i + 3], "=", typenow->type)){
-							cout << typenow->name << " is unique or primary key, but ";
-							out(query, typenow->type, typenow->len);
-							cout << " is already exists." << endl;
+                            Log.setStatus(403);
+                            Log.setOutMsg(typenow->name, query, typenow->type, typenow->len);
             				return 0;
 						}	
 						search = search->next; 
@@ -592,6 +610,10 @@ public:
         	k->blocknum++;
 		}
 		else k->empty -= k->size;
+
+        Log.setStatus(200);
+        Log.setMsg("INSERT");
+        return 1;
     }
 
     int deletes(string * a, int n){
@@ -600,7 +622,7 @@ public:
         target = find_table(target, name);
         if(target == NULL){
             if(!addtable(name)){
-                cout << "no such table!" << endl;
+                Log.setStatus(402);
                 return 0;
             }
             target = table->next;
@@ -673,8 +695,11 @@ public:
     		if(flag_index) nowlist = nowlist->next;
     		else nowresult = nowresult->next;
         }
+        Log.setStatus(200);
+        Log.setMsg("DELETE");
+        return 1;
     }
-
+    
     void select(string * a, int n){
         string name;
         for(int i = 0;i < n;i++)
@@ -686,7 +711,7 @@ public:
         target = find_table(target, name);
         if(target == NULL){
             if(!addtable(name)){
-                cout << "no such table!" << endl;
+                Log.setStatus(402);
                 return;
             }
             target = table->next;
@@ -759,6 +784,8 @@ public:
             if(flag_index) nowlist = nowlist->next;
             else nowresult = nowresult->next;
         }
+        Log.setStatus(200);
+        Log.setMsg("SELECT");
     }
 	
     void create_index(string * a, int n){
@@ -767,7 +794,7 @@ public:
         nowtable = find_table(nowtable, table_name);
         if(nowtable == NULL){
             if(!addtable(table_name)){
-                cout << "no such table!" << endl;
+                Log.setStatus(402);
                 return;
             }
             nowtable = table->next;
@@ -783,11 +810,13 @@ public:
 			addindex(nowtable->list, type, a[2]);
 		}
         else if(type->index){
-        	cout << a[5] << " has index already!" << endl;
+            Log.setStatus(404);
+            Log.setMsg(a[5]);
         	return;
 		}
 		else{
-        	cout << a[5] << " is not unique or primary key!" << endl;
+        	Log.setStatus(405);
+            Log.setMsg(a[5]);
         	return;
 		}
 		/*type->indexname = a[2];
@@ -805,23 +834,25 @@ public:
         newindex->index_name = a[2];
         newindex->table_name = table_name;
         newindex->type_name = type_name;
-        newindex->next = index;
-        index = newindex;
+        newindex->next = index_;
+        index_ = newindex;
+        Log.setStatus(200);
+        Log.setMsg("CREATE INDEX");
     }
    
     void dropindex(string * a, int n){
     	string name = a[2];
-    	Index * k = index;
+    	Index * k = index_;
     	Index * last = NULL;
     	while(k->index_name != name){
     		last = k; 
 			k = k->next;
 		}
 		if(k == NULL){
-			cout << "no such index" << endl;
+			Log.setStatus(402);
 			return;
 		}
-		if(!last) index = index->next;
+		if(!last) index_ = index_->next;
 		else last->next = k->next;
 		Table * nowtable = table->next;
 		nowtable = find_table(nowtable, k->table_name);
@@ -832,6 +863,8 @@ public:
 		}
 		type_node * nowtype = find_row(nowtable->type, k->type_name);
 		nowtype->index = 0;
+        Log.setStatus(200);
+        Log.setMsg("DROP INDEX");
 	}
     
 	void print(){
@@ -849,19 +882,19 @@ public:
 
 
 void readindex(){
-	index = NULL;
+	index_ = NULL;
 	ifstream in("./index/index.txt");
 	Index * now = new Index;
 	while(in >> now->index_name >> now->table_name >> now->type_name){
-		now->next = index;
-		index = now;
+		now->next = index_;
+		index_ = now;
 		now = new Index;
 	}
 	
 }
 
 void writeindex(){
-	Index * now = index;
+	Index * now = index_;
 	ofstream out("./index/index.txt");
 	while(now){
 		out << now->index_name << " " << now->table_name << " " << now->type_name << endl;
@@ -873,9 +906,10 @@ string getCommand(std::istream &in){
     string cmd;
     cmd.clear();
     getline(in, cmd,';');
+    transform(cmd.begin(), cmd.end(), cmd.begin(), towlower);
     return cmd;
 }
-void cmdOperation(database &db, std::istream &in) {
+void cmdOperation(database &db, std::istream &in, bool isfile) {
     string command;
     string cmd_words[CMDLEN];
     command = getCommand(in);
@@ -888,56 +922,67 @@ void cmdOperation(database &db, std::istream &in) {
     //     cout << i << ": " << cmd_words[i] << endl;
     //     system("pause");
     // }
-    
-    if(cmd_words[0] == "create" && cmd_words[1] == "table") {
-        cout << "OPERATION: CREATE TABLE;" << endl;
+    if(cmd_words[0] == "create" && !(cmd_words[1] == "index" && cmd_words[3] == "on")) {
+        // cout << "OPERATION: CREATE TABLE;" << endl;
         db.create_table(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "create" && cmd_words[1] == "index" && cmd_words[3] == "on") {
-        cout << "OPERATION: CREATE INDEX TABLE;" << endl;
+        // cout << "OPERATION: CREATE INDEX TABLE;" << endl;
         db.create_index(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "insert" && cmd_words[1] == "into" && cmd_words[3] == "values") {
-        cout << "OPERATION: INSERT RECORDS;" << endl;
+        // cout << "OPERATION: INSERT RECORDS;" << endl;
         db.insert(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "drop" && cmd_words[1] == "table") {
-        cout << "OPERATION: DROP TABLE;" << endl;
+        // cout << "OPERATION: DROP TABLE;" << endl;
         db.droptable(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "drop" && cmd_words[1] == "index") {
-        cout << "OPERATION: DROP INDEX;" << endl;
+        // cout << "OPERATION: DROP INDEX;" << endl;
         db.dropindex(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "delete" && cmd_words[1] == "from") {
-        cout << "OPERATION: DELETE TABLE;" << endl;
+        // cout << "OPERATION: DELETE TABLE;" << endl;
         db.deletes(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "select") {
-        cout << "OPERATION: SELECT;" << endl;
+        // cout << "OPERATION: SELECT;" << endl;
         db.select(cmd_words, sum);
-    }
-    else if(cmd_words[0] == "create" && cmd_words[1] == "index" && cmd_words[3] == "on") {
-        cout << "OPERATION: CREATE INDEX ON;" << endl;
-        db.create_index(cmd_words, sum);
+        end = clock();
     }
     else if(cmd_words[0] == "execfile") {
         ifstream fin(cmd_words[1]); 
-        cout << "OPERATION: EXECFILE;" << endl;
+        // cout << "OPERATION: EXECFILE;" << endl;
         while (!fin.eof()){
-            cmdOperation(db, fin);
+            cmdOperation(db, fin, true);
         }
+        end = clock();
+        fin.close();
+        Log.setStatus(200);
+        Log.setMsg("EXECFILE");
     }
-    else cout << "The command is not supported" << endl;
-    end = clock();
-    cout << "Execute Time: " << (double)(end - start) / CLOCKS_PER_SEC << " SEC" << endl;
+    else if(cmd_words[0] != ""){
+        cout << "The command is not supported" << endl;
+    }
+
+    if(!isfile){
+        Log.logMsg();
+        cout << "Execute Time: " << (double)(end - start) / CLOCKS_PER_SEC << " SEC" << endl;
+    }
 }
 
 int main(){
     database db;
     while(1){
         printf("minisql>");
-        cmdOperation(db, cin);
+        cmdOperation(db, cin, false);
         writeindex();
         db.fileout();
     }
