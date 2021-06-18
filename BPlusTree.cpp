@@ -95,6 +95,7 @@ public:
     }
     void insert(treenode * now, int pos, treenode * Son, node * to, char * x){
     	int a;
+    	//printf("%d\n", pos);
     	memcpy((char *)&a, x, len);
         now->num++;
         for(int i  = now->num - 1;i > pos  + 1; i--){
@@ -108,6 +109,7 @@ public:
         now->to[pos + 1] = to;
     }
     void add(char * x, node * to){
+    	//printf("ok\n");
         treenode * now = root;
         char * k = new char[len + 1];
         memcpy(k, x, len);
@@ -124,6 +126,7 @@ public:
                 int k;
                 k = 1;
 			}*/
+			//printf("%d\n", pos);
             if(now->isleaf){
                 insert(now, pos, NULL, to, k);
                 //printf("%d %d ok\n", now->num, n);
@@ -293,7 +296,9 @@ public:
     	treenode * now = root;
     	while(1){
     		int pos = find(now, x);
+    		//printf("%d\n", pos);
     		if(now->isleaf){
+    			//printf("ok\n");
     			treenode * start;
     			treenode * end;
     			int startpos, endpos;
@@ -355,7 +360,8 @@ public:
 				}
 				return ret;
 			}
-    		now = now->son[pos];
+    		if(pos == -1) now = now->son[0];
+			else now = now->son[pos];
 		}
 	}
     void printnode(treenode * k){

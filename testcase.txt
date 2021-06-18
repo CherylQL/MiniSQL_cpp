@@ -1,6 +1,5 @@
 drop table student;
 create table student (a char(8) unique, b int);
-create index first on student ( a );
 insert into student values ('00010000',10000);
 insert into student values ('00010001',10001);
 insert into student values ('00010002',10002);
@@ -10002,6 +10001,7 @@ insert into student values ('00019997',19997);
 insert into student values ('00019998',19998);
 insert into student values ('00019999',19999);
 insert into student values ('00010000',10000);
+insert into student values ('00000000',3);
 delete from student where a = '00019999';
 delete from student where a = '00019998';
 delete from student where a = '00019997';

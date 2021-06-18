@@ -89,10 +89,10 @@ void LogManager::logMsg(){
     cout << "SQL ERROR: " + this->MSG <<endl;
     break;
   case 404:
-    cout << "SQL ERROR: INDEX" + this->MSG + "IS ALREADY EXISTS" <<endl;
+    cout << "SQL ERROR: INDEX " + this->MSG + " IS ALREADY EXISTS" <<endl;
     break;
   case 405:
-    cout << "SQL ERROR: " + this->MSG + "IS UNIQUE OR PRIMARY KEY" <<endl;
+    cout << "SQL ERROR: " + this->MSG + " IS NOT UNIQUE OR PRIMARY KEY" <<endl;
     break;
   default:
     cout << "UNDEFINED STATUS CODE" << endl;

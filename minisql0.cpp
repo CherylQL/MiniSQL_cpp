@@ -40,7 +40,7 @@ struct Index{
 	string type_name;
 	Index * next;
 };
-Index* index_;
+Index* index_ = NULL;
 
 /*struct node{
     struct node * next;
@@ -80,6 +80,11 @@ struct Table{
 	string name;
 };
 
+
+int max(int a, int b){
+	if(a >= b) return a;
+	else return b;
+}
 
 int ischar(char ch){
     return ((ch == ' ') || (ch == ',') || (ch == '(') || (ch == ')') || (ch == ';') || (ch == '\t') || (ch == '\'') || (ch == '\n'));
@@ -167,6 +172,7 @@ int cmp(char * x, string y, string oper, string type){
 	}
 	if(type == "char"){
         string str = x;
+        //cout << str << " " << y << endl;
 		switch(op){
 			case 0: return str == y;
 			case 1:	return str !=y ;
@@ -476,6 +482,7 @@ public:
                     now->isunique = 0;
                     now->len = 0;
                     now->next = NULL;
+                    now->tree = NULL;
                     newtable->typenum++;
                 }
             }
@@ -500,10 +507,13 @@ public:
 			nowindex = nowindex->next;
 		}
 		while(k != NULL){
+			Table * p = k;
 			if(k->name == name){
 				last->next = k->next;
-				free(k);
+				k = last->next;
+				free(p);
 			}
+			else k = k->next;
 		}
 		if(!remove(("./table/" + name + ".txt").c_str())){
             Log.setStatus(200);
@@ -540,10 +550,12 @@ public:
 			}
 		}*/
         /**/
+        
 		node * newnode = new node;
 		newnode->value = new char[k->size]; 
 		type_node * typenow = k->type;
 		for(int i = 1;i <= k->typenum;i++){
+			//printf("%d\n",i);
 			//cout << typenow->name << " " << typenow->type << " " << typenow->len << " " << a[i + 3] << " " << typenow->begin << endl;
 			if(typenow->type == "char") memcpy(newnode->value + typenow->begin, a[i + 3].c_str(), typenow->len);
             else if(typenow->type == "int"){
@@ -554,12 +566,14 @@ public:
                 double x = strtofloat(a[i + 3]);
                 memcpy(newnode->value + typenow->begin, (char *)&x, sizeof(double));
             }
+            
             if(typenow->isunique || typenow->isprimary){
             	//printf("!!%x %x %d %d\n", typenow->tree, table->next->type->next->tree, typenow->tree->root->num, table->next->type->next->tree->root->num);
 				char * query = new char[typenow->len];
             	memcpy(query, newnode->value + typenow->begin, typenow->len);
             	if(index_){
             		result * ans = typenow->tree->query(query, "=");
+					//printf("ok\n");
             		if(ans){
                         Log.setStatus(403);
                         Log.setOutMsg(typenow->name, query, typenow->type, typenow->len);
@@ -567,10 +581,13 @@ public:
 					}
 				}
 				else{
+					//printf("ok\n");
 					node * search = k->list;
-					char * nowvalue = new char[typenow->len];
+					char * nowvalue = new char[typenow->len + 1];
 					while(search != NULL){
 						memcpy(nowvalue, search->value + typenow->begin, typenow->len);
+						nowvalue[typenow->len] = '\0';
+						//cout << nowvalue << endl;
 						if(cmp(nowvalue, a[i + 3], "=", typenow->type)){
                             Log.setStatus(403);
                             Log.setOutMsg(typenow->name, query, typenow->type, typenow->len);
@@ -582,6 +599,7 @@ public:
 			}
             typenow = typenow->next;
 		}
+		//printf("ok\n");
 		typenow = k->type;
 		for(int i = 1;i <= k->typenum;i++){
 			if(typenow->index){
@@ -749,7 +767,33 @@ public:
         node * nowlist = target->list;
         result * nowresult = ans;
         node * now;
-        //printf("!!!!%d\n", check.size());
+        
+        cout << "+"; 
+		for(int i = 0;i < out.size();i++){
+			int t = 0;
+			if(out[i]->type == "char") t = max(out[i]->len, out[i]->name.length());
+			else t = max(out[i]->name.length(), 10); 
+			for(int i = 1;i <= t;i++) cout << "-";
+			cout << "+";
+		}
+        cout << endl;
+        
+		cout << "|";
+		for(int i = 0;i < out.size(); i++)
+		if(out[i]->type == "char") cout << setw(max(out[i]->len, out[i]->name.length())) << right << out[i]->name << "|";
+		else cout << setw(max(out[i]->name.length(), 10)) << right << out[i]->name << "|"; 
+		cout << endl;
+		
+        cout << "+"; 
+		for(int i = 0;i < out.size();i++){
+			int t = 0;
+			if(out[i]->type == "char") t = max(out[i]->len, out[i]->name.length());
+			else t = max(out[i]->name.length(), 10); 
+			for(int i = 1;i <= t;i++) cout << "-";
+			cout << "+";
+		}
+		cout << endl; 
+		
         while(now != NULL){
         	if((nowlist == NULL && flag_index == 1) || (flag_index == 0 && nowresult == NULL)) break;
         	if(flag_index) now = nowlist;
@@ -765,29 +809,41 @@ public:
                 }
             }
             if(flag){
+            	cout << "|";
                 for(int i = 0;i < out.size();i++){
                     if(out[i]->type == "char"){
                         char str[out[i]->len + 1];
                         str[out[i]->len] = 0;
                         memcpy(str, now->value + out[i]->begin, out[i]->len);
-                        cout << str << " ";
+                        cout << setw(max(out[i]->len, out[i]->name.length())) << right << str << "|";
                     }
                     else if(out[i]->type == "int"){
                         int x;
                         memcpy((char *)&x, now->value + out[i]->begin, out[i]->len);
-                        cout << x << " ";
+                        cout << setw(10) << right << x << "|";
                     }
                     else if(out[i]->type == "float"){
                         double x;
                         memcpy((char *)&x, now->value + out[i]->begin, out[i]->len);
-                        cout << x << " ";
+                        cout << setw(10) << right << x << "|";
                     }
+                    
                 }
                 cout << endl;
             }
             if(flag_index) nowlist = nowlist->next;
             else nowresult = nowresult->next;
         }
+        cout << "+"; 
+		for(int i = 0;i < out.size();i++){
+			int t = 0;
+			if(out[i]->type == "char") t = max(out[i]->len, out[i]->name.length());
+			else t = max(out[i]->name.length(), 10); 
+			for(int i = 1;i <= t;i++) cout << "-";
+			cout << "+";
+		}
+		cout << endl;
+		
         Log.setStatus(200);
         Log.setMsg("SELECT");
     }
@@ -876,11 +932,11 @@ public:
         cout << now->name << endl;
         type_node * k = now->type;
         for(;k;k = k->next) cout << k->name << " " << k->type << " " << k->len << " " << k->isprimary << " " << k->isunique << endl;
-        node * list = now->list;
+        /*node * list = now->list;
         while(list){
         	for(int i = 0;i < now->size;i++) printf("%02X ", list->value[i]);printf("\n"); 
 			list = list->next;
-		}
+		}*/
     }
 };
 
@@ -918,7 +974,7 @@ void cmdOperation(database &db, std::istream &in, bool isfile) {
     string cmd_words[CMDLEN];
     command = getCommand(in);
     clock_t start, end;
-    
+    //cout << command << endl;
     start = clock();
     int sum = findstr(command, cmd_words);
     // for (int i = 0; i < sum; i++)
@@ -964,6 +1020,10 @@ void cmdOperation(database &db, std::istream &in, bool isfile) {
     else if(cmd_words[0] == "execfile") {
         ifstream fin(cmd_words[1]); 
         // cout << "OPERATION: EXECFILE;" << endl;
+        if(!fin.good()){
+        	cout << "The file is not exist" << endl;
+        	return;
+		}
         while (!fin.eof()){
             cmdOperation(db, fin, true);
         }
@@ -994,5 +1054,6 @@ int main(){
         cmdOperation(db, cin, false);
         writeindex();
         db.fileout();
+        //db.print(); 
     }
 }
