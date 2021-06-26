@@ -701,11 +701,11 @@ public:
                 node * k =now;
                 if(!k->last){
 					target->list = now->next;
-					now->next->last = now->last; 
+					if(now->next) now->next->last = now->last; 
 				}
                 else if(!now->next){
 					target->tail = last;
-					now->last->next = now->next;
+					if(now->last) now->last->next = now->next;
 				}
                 else{
                 	now->last->next = now->next;
@@ -794,7 +794,7 @@ public:
 		}
 		cout << endl; 
 		
-        while(now != NULL){
+        while(1){
         	if((nowlist == NULL && flag_index == 1) || (flag_index == 0 && nowresult == NULL)) break;
         	if(flag_index) now = nowlist;
         	else now = nowresult->to;
@@ -929,14 +929,15 @@ public:
     
 	void print(){
         Table * now = table->next;
+        if(!now) return;
         cout << now->name << endl;
         type_node * k = now->type;
         for(;k;k = k->next) cout << k->name << " " << k->type << " " << k->len << " " << k->isprimary << " " << k->isunique << endl;
-        /*node * list = now->list;
+        node * list = now->list;
         while(list){
         	for(int i = 0;i < now->size;i++) printf("%02X ", list->value[i]);printf("\n"); 
 			list = list->next;
-		}*/
+		}
     }
 };
 
